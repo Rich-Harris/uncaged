@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang='en-GB'>
+<head>
+	<meta charset='utf-8'>
+	<meta name='viewport' content='width=device-width, initial-scale=1, maximum-scale=1'>
+
+	<!-- replace this with a proper (non-slug) title -->
+	<title>Previewing interactive</title>
+
+	<link rel='stylesheet' href='@@fonts'>
+	<link rel='stylesheet' href='@@sharedCss'>
+
+	<style>
+		body {
+			display: block;
+			margin: 0;
+			padding: 0 1em;
+			color: #333;
+			font-size: 16px;
+			line-height: 1.4;
+			font-family: 'Guardian Text Egyptian Web';
+			-webkit-font-smoothing: antialiased;
+		}
+
+		a, a:link, a:visited {
+			color: #005689;
+			text-decoration: none;
+		}
+
+		a:hover {
+			text-decoration: underline;
+		}
+
+		h1, h2, h3, h4, h5, h6, strong, b {
+			font-family: 'Guardian Egyptian Web';
+			font-weight: 500;
+		}
+
+		h3 {
+			font-family: 'Guardian Egyptian Web',Volkhov,Georgia;
+			font-size: 28px;
+			line-height: 32px;
+			font-weight: 700;
+			margin: 0 75px 0 0;
+			padding: 10px 0 0 0;
+		}
+
+		p {
+			font-family: 'Guardian Text Sans Web',Arial,Helvetica,sans-serif;
+			font-size: 14px;
+		}
+	</style>
+</head>
+
+<body>
+
+	<main></main>
+
+	<script>window.curl = { apiName: 'require' };</script>
+	<script src='curl.js'></script>
+
+	<script>
+		require([ 'boot' ], function ( interactive ) {
+			interactive.boot( document.querySelector( 'main' ), window.location.href );
+		});
+	</script>
+
+</body>
+</html>

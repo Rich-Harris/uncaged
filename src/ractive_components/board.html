@@ -1,0 +1,249 @@
+<link rel='ractive' href='./paddle.html'>
+<link rel='ractive' href='./ball.html'>
+<link rel='ractive' href='./brick.html'>
+
+<svg viewBox='-10 -10 {{board.width+20}} {{board.height+20}}' on-click='launch()'>
+	<rect width='{{board.width}}' height='{{board.height}}' fill='none' stroke='#ddd'/>
+
+	{{#each bricks :r}}
+		{{#each this :c}}
+			<brick type='{{this}}' column='{{c}}' row='{{r}}'/>
+		{{/each}}
+	{{/each}}
+
+
+	<paddle/>
+	<ball x='{{ball.x}}' y='{{ball.y}}' r='{{ball.r}}' radius='{{ball.radius}}'/>
+</svg>
+
+
+<style>
+	svg {
+		width: 100%;
+		height: 100%;
+		background-color: #eee;
+	}
+</style>
+
+<script>
+	var rAF = require( 'utils/compatibility/requestAnimationFrame' ),
+		now = require( 'utils/timing/now' ),
+		deepClone = require( 'utils/core/deepClone' ),
+
+		bounceOffWalls = require( 'helpers/bounceOffWalls' ),
+		bounceOffCeiling = require( 'helpers/bounceOffCeiling' ),
+		bounceOffPaddle = require( 'helpers/bounceOffPaddle' ),
+		destroyBricks = require( 'helpers/destroyBricks' ),
+
+		data = require( 'data' );
+
+	component.exports = {
+		data: {
+			// global settings
+			board: {
+				width: 1000,
+				height: 1000
+			},
+
+			game: {
+				speed: 1,
+				brickWidth: 80,
+				brickHeight: 40
+			},
+
+			// paddle
+			paddle: {
+				width: 200,
+				height: 30,
+				x: 500,
+				y: 950
+			},
+
+			// ball
+			ball: {
+				resting: true,
+				radius: 35,
+				x: 510,
+				y: 900,
+				r: 0,
+				vx: 0,
+				vy: 0,
+				vr: 0
+			}
+		},
+
+		oninit: function () {
+			var frame, lastTime, game, board, bricks, ball, paddle;
+
+			board = this.get( 'board' );
+			game = this.get( 'game' );
+			ball = this.get( 'ball' );
+			paddle = this.get( 'paddle' );
+			bricks = this.get( 'bricks' );
+
+			lastTime = now();
+
+			frame = () => {
+				var time, elapsed, dx, dy;
+
+				window.meter.tick();
+				rAF( frame );
+
+				time = now();
+				elapsed = ( time - lastTime ) / 1000;
+
+				if ( !ball.resting && game.speed ) {
+					dx = ball.vx * elapsed * game.speed;
+					dy = ball.vy * elapsed * game.speed;
+
+					ball.x += dx;
+					ball.y += dy;
+					ball.r += ball.vr;
+
+					bounceOffWalls( ball, board );
+					bounceOffCeiling( ball, board );
+					bounceOffPaddle( ball, paddle );
+
+					this.destroyBricks( ball, bricks, dx, dy, board, game );
+
+					if ( ball.y - ball.radius > board.height ) {
+						this.loseLife();
+					}
+
+					this.update( 'ball' );
+				}
+
+
+				lastTime = time;
+			};
+
+			rAF( frame );
+		},
+
+		onrender: function () {
+			var handleLockChange, mouselock, screenX;
+
+			this.svg = this.find( 'svg' );
+
+			// Hook pointer lock state change events for different browsers
+			handleLockChange = () => {
+				var lockElement = document.pointerLockElement || document.mozPointerLockElement || document.webkitPointerLockElement;
+
+				mouselock = lockElement === this.svg;
+				this.set( 'mouselock', mouselock );
+			};
+
+			document.addEventListener( 'pointerlockchange', handleLockChange, false );
+			document.addEventListener( 'mozpointerlockchange', handleLockChange, false );
+			document.addEventListener( 'webkitpointerlockchange', handleLockChange, false );
+
+			document.addEventListener( 'mousemove', event => {
+				if ( mouselock ) {
+					screenX += event.movementX;
+				} else {
+					screenX = event.clientX;
+				}
+
+				this.movePaddle( screenX );
+			});
+		},
+
+		movePaddle: function ( screenX ) {
+			var ctm = this.svg.getScreenCTM(),
+				boardX = ( screenX - ctm.e ) / ctm.a,
+				paddle = this.get( 'paddle' ),
+				halfWidth = paddle.width / 2,
+				min = halfWidth,
+				max = this.get( 'board.width' ) - halfWidth,
+				newPaddleX;
+
+			newPaddleX = Math.max( min, Math.min( max, boardX ) );
+
+			if ( this.get( 'ball.resting' ) ) {
+				this.add( 'ball.x', newPaddleX - paddle.x );
+			}
+
+			this.set( 'paddle.x', newPaddleX );
+		},
+
+		launch: function () {
+			var ball, vx, vy, vr;
+
+			if ( !this.get( 'mouselock' ) ) {
+				this.svg.requestPointerLock();
+			}
+
+			ball = this.get( 'ball' );
+
+			if ( ball.resting ) {
+				ball.vx = ( ball.x - this.get( 'paddle.x' ) ) * 20;
+				ball.vy = -600;
+				ball.vr = ball.vx / 200;
+
+				ball.resting = false;
+
+				this.update( 'ball ');
+			}
+		},
+
+		loseLife: function () {
+			var ball = this.get( 'ball' );
+
+			ball.resting = true;
+			ball.vx = ball.vy = ball.vr = 0;
+
+			ball.x = this.get( 'paddle.x' ) + ( Math.random() - 0.5 ) * 40;
+			ball.y = this.get( 'paddle.y' ) - ball.radius;
+
+			this.update( 'ball' );
+		},
+
+		destroyBricks: function ( ball, bricks, dx, dy, board, game ) {
+			var rowNum,
+				columnNum,
+				row,
+				column,
+				brick,
+				c1, c2, r1, r2,
+				x,
+				y,
+				candidates,
+				candidate,
+				collision,
+				i;
+
+			x = ball.vx > 0 ? ball.x + ball.radius : ball.x - ball.radius;
+			y = ball.vy > 0 ? ball.y + ball.radius : ball.y - ball.radius;
+
+			c1 = ~~( x / game.brickWidth );
+			c2 = ~~( ( x + dx ) / game.brickWidth );
+
+			r1 = ~~( y / game.brickHeight );
+			r2 = ~~( ( y + dy ) / game.brickHeight );
+
+			if ( c2 !== c1 ) {
+				c2 = c2 > c1 ? c1 + 1 : c1 - 1;
+			}
+
+			if ( r2 !== r1 ) {
+				r2 = r2 > r1 ? r1 + 1 : r1 - 1;
+			}
+
+			row = bricks[ r2 ];
+			if ( !row ) return;
+
+			brick = row[ c2 ];
+			if ( !brick ) return;
+
+			if ( c2 !== c1 ) {
+				ball.vx *= -1;
+			}
+
+			if ( r2 !== r1 ) {
+				ball.vy *= -1;
+			}
+
+			this.set( 'bricks[' + r2 + '][' + c2 + ']', null );
+		}
+	};
+</script>

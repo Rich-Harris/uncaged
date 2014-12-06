@@ -1,0 +1,19 @@
+<g transform='translate({{column*game.brickWidth}}, {{row*game.brickHeight}})'>
+	{{#if type !== null}}
+		<rect class='type-{{type}}' x='2' y='2' width='{{game.brickWidth-4}}' height='{{game.brickHeight-4}}'/>
+	{{/if}}
+</g>
+
+<style>
+	rect {
+		fill: green;
+	}
+
+	.type-a {
+		fill: red;
+	}
+
+	.type-b {
+		fill: yellow;
+	}
+</style>
