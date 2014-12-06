@@ -1,19 +1,37 @@
-<g transform='translate({{column*game.brickWidth}}, {{row*game.brickHeight}})'>
-	{{#if type !== null}}
-		<rect class='type-{{type}}' x='2' y='2' width='{{game.brickWidth-4}}' height='{{game.brickHeight-4}}'/>
-	{{/if}}
-</g>
+{{#if type !== null}}
+	<g
+		intro='fade:{delay:{{row*80+column*20}}}'
+		transform='translate({{column*board.brickWidth}}, {{row*board.brickHeight}})'
+	>
+		<rect class='type-{{type}}' x='2' y='2' width='{{board.brickWidth-4}}' height='{{board.brickHeight-4}}' rx='2' ry='2'/>
+	</g>
+{{/if}}
 
 <style>
 	rect {
-		fill: green;
+		fill: #005689;
+		stroke: rgba(0,0,0,0.4);
 	}
 
-	.type-a {
-		fill: red;
-	}
-
-	.type-b {
-		fill: yellow;
-	}
+	.type-a { fill: #382811; }
+	.type-b { fill: #ffce4b; }
+	.type-c { fill: #fdadba; }
+	.type-d { fill: #CAD6ED; }
 </style>
+
+<script>
+	require( 'ractive-transitions-fade' );
+
+	component.exports = {
+		transitions: {
+			shrink: function ( t ) {
+				var transform = t.getStyle( 'transform' );
+
+				t.animateStyle( 'transform', transform + ' scale(0)', {
+					duration: 200,
+					easing: 'easeOut'
+				}).then( t.complete );
+			}
+		}
+	};
+</script>

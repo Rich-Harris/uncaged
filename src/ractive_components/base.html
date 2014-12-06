@@ -1,13 +1,13 @@
-<link rel='ractive' href='./header.html'>
-<link rel='ractive' href='./board.html'>
+<link rel='ractive' href='./game-header.html'>
+<link rel='ractive' href='./game-board.html'>
 
 <div class='uncaged'>
 	<div class='header-container'>
-		<header/>
+		<game-header/>
 	</div>
 
 	<div class='board-container'>
-		<board/>
+		<game-board/>
 	</div>
 </div>
 
@@ -17,13 +17,15 @@
 		width: 100%;
 		height: 100%;
 		padding: 5em 0 0 0;
+		background: url(${version}/files/w27th.png) 50% 50% no-repeat;
+		background-size: cover;
 	}
 
 	.header-container {
 		position: absolute;
 		top: 0;
 		left: 0;
-		width: 100%:
+		width: 100%;
 		height: 5em;
 	}
 
@@ -32,3 +34,16 @@
 		height: 100%;
 	}
 </style>
+
+<script>
+	component.exports = {
+		data: {
+			game: {
+				paused: false,
+				speed: 1,
+				lives: 3,
+				score: 0
+			}
+		}
+	};
+</script>

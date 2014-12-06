@@ -7,7 +7,7 @@ var app = {
 
 		app.el = el;
 
-		levels = data.levels.map( l => l.split( '\n' ).map( r => r.split( '' ).map( b => b === 'x' ? null : b ) ) );
+		levels = data.levels.map( l => l.split( '\n' ).map( r => r.split( '' ).map( b => b === '-' ? null : b ) ) );
 		console.log( 'levels', levels );
 
 		app.view = new BaseView({

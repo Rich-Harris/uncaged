@@ -3,17 +3,40 @@
 <link rel='ractive' href='./brick.html'>
 
 <svg viewBox='-10 -10 {{board.width+20}} {{board.height+20}}' on-click='launch()'>
-	<rect width='{{board.width}}' height='{{board.height}}' fill='none' stroke='#ddd'/>
+	<rect width='{{board.width}}' height='{{board.height}}' fill='rgba(255,255,255,0.8)' stroke='rgba(0,0,0,0.4)'/>
 
-	{{#each bricks :r}}
-		{{#each this :c}}
-			<brick type='{{this}}' column='{{c}}' row='{{r}}'/>
+	<text text-anchor='end' x='100%'>
+		<tspan dx='-2em' dy='2em'>Score: {{game.score}}</tspan>
+	</text>
+
+	<text text-anchor='start'>
+		<tspan dx='1em' dy='2em'>Lives: </tspan>
+	</text>
+
+	<g transform='translate(120,25) scale(1.5)'>
+		{{#each range(1,game.lives) :i}}
+			<image x='{{i*30}}' width='21.5' height='39.7' xlink:href='${version}/files/coke.png'>
 		{{/each}}
-	{{/each}}
+	</g>
+
+	<g class='bricks'>
+		{{#each bricks :r}}
+			{{#each this :c}}
+				<brick type='{{this}}' column='{{c}}' row='{{r}}'/>
+			{{/each}}
+		{{/each}}
+	</g>
 
 
 	<paddle/>
 	<ball x='{{ball.x}}' y='{{ball.y}}' r='{{ball.r}}' radius='{{ball.radius}}'/>
+
+
+	{{#if gameOver}}
+		<rect width='{{board.width}}' height='{{board.height}}' fill='rgba(255,255,255,0.8)' stroke='rgba(0,0,0,0.4)'/>
+		<text x='{{board.width/2}}' y='{{board.height/2 - 50}}' class='game-over large'>Visa denied!</text>
+		<text x='{{board.width/2}}' y='{{board.height/2}}' class='game-over'>Click to try again</text>
+	{{/if}}
 </svg>
 
 
@@ -21,7 +44,21 @@
 	svg {
 		width: 100%;
 		height: 100%;
-		background-color: #eee;
+		/*background-color: rgba(255,255,255,0.7);*/
+	}
+
+	text {
+		font-family: Abel;
+		font-size: 2em;
+	}
+
+	.game-over {
+		text-anchor: middle;
+	}
+
+	.large {
+		font-size: 6em;
+		font-weight: bold;
 	}
 </style>
 
@@ -32,8 +69,6 @@
 
 		bounceOffWalls = require( 'helpers/bounceOffWalls' ),
 		bounceOffCeiling = require( 'helpers/bounceOffCeiling' ),
-		bounceOffPaddle = require( 'helpers/bounceOffPaddle' ),
-		destroyBricks = require( 'helpers/destroyBricks' ),
 
 		data = require( 'data' );
 
@@ -42,12 +77,8 @@
 			// global settings
 			board: {
 				width: 1000,
-				height: 1000
-			},
-
-			game: {
-				speed: 1,
-				brickWidth: 80,
+				height: 1000,
+				brickWidth: 1000 / 16,
 				brickHeight: 40
 			},
 
@@ -69,7 +100,21 @@
 				vx: 0,
 				vy: 0,
 				vr: 0
+			},
+
+			range: function ( low, high ) {
+				var i, result = [];
+				for ( i = low; i <= high; i += 1 ) {
+					result.push( i );
+				}
+				return result;
 			}
+		},
+
+		sounds: {
+			breakFree: audio( 'break-free.mp3' ),
+			boing: audio( 'boing_x.wav' ),
+			hit: audio( 'sfx/hit.wav' )
 		},
 
 		oninit: function () {
@@ -92,7 +137,7 @@
 				time = now();
 				elapsed = ( time - lastTime ) / 1000;
 
-				if ( !ball.resting && game.speed ) {
+				if ( !ball.resting && game.speed && !game.paused ) {
 					dx = ball.vx * elapsed * game.speed;
 					dy = ball.vy * elapsed * game.speed;
 
@@ -102,7 +147,7 @@
 
 					bounceOffWalls( ball, board );
 					bounceOffCeiling( ball, board );
-					bounceOffPaddle( ball, paddle );
+					this.bounceOffPaddle( ball, paddle );
 
 					this.destroyBricks( ball, bricks, dx, dy, board, game );
 
@@ -120,12 +165,17 @@
 			rAF( frame );
 		},
 
-		onrender: function () {
+		setupKeyboard: function () {
+			window.addEventListener( 'keypress', event => {
+				if ( event.which === 32 ) {
+					this.toggle( 'game.paused' );
+				}
+			});
+		},
+
+		setupMouse: function () {
 			var handleLockChange, mouselock, screenX;
 
-			this.svg = this.find( 'svg' );
-
-			// Hook pointer lock state change events for different browsers
 			handleLockChange = () => {
 				var lockElement = document.pointerLockElement || document.mozPointerLockElement || document.webkitPointerLockElement;
 
@@ -144,8 +194,18 @@
 					screenX = event.clientX;
 				}
 
-				this.movePaddle( screenX );
+				if ( !this.get( 'game.paused' ) ) {
+					this.movePaddle( screenX );
+				}
 			});
+		},
+
+		onrender: function () {
+			this.svg = this.find( 'svg' );
+			this.setupMouse();
+			this.setupKeyboard();
+
+			//this.sounds.breakFree.play();
 		},
 
 		movePaddle: function ( screenX ) {
@@ -189,6 +249,13 @@
 		loseLife: function () {
 			var ball = this.get( 'ball' );
 
+			if ( !this.get( 'game.lives' ) ) {
+				this.gameOver();
+				return;
+			}
+
+			this.subtract( 'game.lives' );
+
 			ball.resting = true;
 			ball.vx = ball.vy = ball.vr = 0;
 
@@ -196,6 +263,40 @@
 			ball.y = this.get( 'paddle.y' ) - ball.radius;
 
 			this.update( 'ball' );
+		},
+
+		gameOver: function () {
+			this.set({
+				gameOver: true,
+				'game.paused': true
+			});
+
+			document.exitPointerLock();
+		},
+
+		bounceOffPaddle: function ( ball, paddle ) {
+			var paddleLeft, paddleRight, paddleRadius;
+
+			// trivial rejects
+			if ( ball.y + ball.radius < paddle.y ) return;
+			if ( ball.x + ball.radius < paddle.x - paddle.width / 2 ) return;
+			if ( ball.x - ball.radius > paddle.x + paddle.width / 2 ) return;
+
+			paddleLeft = paddle.x - paddle.width / 2;
+			paddleRight = paddle.x + paddle.width / 2;
+			paddleRadius = paddle.height / 2;
+
+			// trivial accepts
+			if ( ( ball.x > paddleLeft + paddleRadius ) && ( ball.x < paddleRight - paddleRadius ) ) {
+				ball.y = ( paddle.y - ( ball.y + ball.radius - paddle.y ) - ball.radius );
+				ball.vx += ( ball.x - paddle.x ) * 4;
+			}
+
+			// possible intersection between rounded edges
+			// TODO
+
+			ball.vy *= -1;
+			this.sounds.boing.play();
 		},
 
 		destroyBricks: function ( ball, bricks, dx, dy, board, game ) {
@@ -215,11 +316,11 @@
 			x = ball.vx > 0 ? ball.x + ball.radius : ball.x - ball.radius;
 			y = ball.vy > 0 ? ball.y + ball.radius : ball.y - ball.radius;
 
-			c1 = ~~( x / game.brickWidth );
-			c2 = ~~( ( x + dx ) / game.brickWidth );
+			c1 = ~~( x / board.brickWidth );
+			c2 = ~~( ( x + dx ) / board.brickWidth );
 
-			r1 = ~~( y / game.brickHeight );
-			r2 = ~~( ( y + dy ) / game.brickHeight );
+			r1 = ~~( y / board.brickHeight );
+			r2 = ~~( ( y + dy ) / board.brickHeight );
 
 			if ( c2 !== c1 ) {
 				c2 = c2 > c1 ? c1 + 1 : c1 - 1;
@@ -244,6 +345,46 @@
 			}
 
 			this.set( 'bricks[' + r2 + '][' + c2 + ']', null );
+			this.sounds.hit.play();
+
+			if ( won( bricks ) ) {
+				this.won();
+			}
+		},
+
+		won: function () {
+			window.alert( 'you won!' );
 		}
 	};
+
+	function audio ( filename ) {
+		var node, src;
+
+		node = new Audio();
+		src = '${version}/files/' + filename;
+
+		node.addEventListener( 'ended', () => {
+			node.src = src;
+		});
+
+		node.src = src;
+		return node;
+	}
+
+	function won ( bricks ) {
+		var r, c, row;
+
+		r = bricks.length;
+		while ( r-- ) {
+			row = bricks[r];
+			c = row.length;
+			while ( c-- ) {
+				if ( row[c] ) {
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
 </script>
