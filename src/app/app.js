@@ -8,15 +8,15 @@ var app = {
 		app.el = el;
 
 		levels = data.levels.map( l => l.split( '\n' ).map( r => r.split( '' ).map( b => b === '-' ? null : b ) ) );
-		console.log( 'levels', levels );
 
 		app.view = new BaseView({
 			el: el,
 			data: {
-				levels: levels,
-				bricks: levels[0]
+				levels: levels
 			}
 		});
+
+		window.board = app.view.findComponent( 'game-board' );
 	}
 };
 

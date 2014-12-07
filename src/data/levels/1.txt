@@ -1,0 +1,12 @@
+-l--------------
+-m-ll-----------
+-m-mm-----q-----
+-mmmm-----q----s
+--mmm----qqq--ss
+---mmm---qqqn-ss
+nn-mmm---qqqn-ss
+nn-mm--nnqqqn-nn
+nnnmmnnnnqqqnnnn
+oorrrroooooooooo
+pprrrrpppppppppp
+pppppppppppppppp

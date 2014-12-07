@@ -1,6 +1,7 @@
 <link rel='ractive' href='./paddle.html'>
 <link rel='ractive' href='./ball.html'>
 <link rel='ractive' href='./brick.html'>
+<link rel='ractive' href='./powerup.html'>
 
 <svg viewBox='-10 -10 {{board.width+20}} {{board.height+20}}' on-click='launch()'>
 	<rect width='{{board.width}}' height='{{board.height}}' fill='rgba(255,255,255,0.8)' stroke='rgba(0,0,0,0.4)'/>
@@ -27,10 +28,23 @@
 		{{/each}}
 	</g>
 
+	<g class='powerups'>
+		{{#each powerups}}
+			<powerup x='{{x}}' y='{{y}}' type='{{type}}'/>
+		{{/each}}
+	</g>
+
 
 	<paddle/>
 	<ball x='{{ball.x}}' y='{{ball.y}}' r='{{ball.r}}' radius='{{ball.radius}}'/>
 
+	{{#if game.paused && !gameOver}}
+		<g on-click='play()'>
+			<rect width='{{board.width}}' height='{{board.height}}' fill='rgba(255,255,255,0.8)' stroke='rgba(0,0,0,0.4)'/>
+			<text x='{{board.width/2}}' y='{{board.height/2 - 50}}' class='game-over large'>Click to play</text>
+			<text x='{{board.width/2}}' y='{{board.height/2}}' class='game-over'>level {{game.level+1}}</text>
+		</g>
+	{{/if}}
 
 	{{#if gameOver}}
 		<rect width='{{board.width}}' height='{{board.height}}' fill='rgba(255,255,255,0.8)' stroke='rgba(0,0,0,0.4)'/>
@@ -71,6 +85,12 @@
 		bounceOffCeiling = require( 'helpers/bounceOffCeiling' ),
 
 		data = require( 'data' );
+
+	var availablePowerups = [
+		[ 'greg', 'gabe', 'extraLife' ],
+		[ 'kenton', 'kenan', 'gabe', 'greg', 'extraLife' ],
+		[ 'kenton', 'kenan', 'rich', 'nadja', 'extraLife' ]
+	];
 
 	component.exports = {
 		data: {
@@ -118,18 +138,17 @@
 		},
 
 		oninit: function () {
-			var frame, lastTime, game, board, bricks, ball, paddle;
+			var frame, lastTime, game, board, ball, paddle;
 
 			board = this.get( 'board' );
 			game = this.get( 'game' );
 			ball = this.get( 'ball' );
 			paddle = this.get( 'paddle' );
-			bricks = this.get( 'bricks' );
 
 			lastTime = now();
 
 			frame = () => {
-				var time, elapsed, dx, dy;
+				var time, elapsed, dx, dy, i, powerups, powerup;
 
 				window.meter.tick();
 				rAF( frame );
@@ -137,25 +156,41 @@
 				time = now();
 				elapsed = ( time - lastTime ) / 1000;
 
-				if ( !ball.resting && game.speed && !game.paused ) {
-					dx = ball.vx * elapsed * game.speed;
-					dy = ball.vy * elapsed * game.speed;
+				if ( game.speed && !game.paused ) {
+					[ ball ].forEach( ball => {
+						if ( !ball.resting ) {
+							dx = ball.vx * elapsed * game.speed;
+							dy = ball.vy * elapsed * game.speed;
 
-					ball.x += dx;
-					ball.y += dy;
-					ball.r += ball.vr;
+							ball.x += dx;
+							ball.y += dy;
+							ball.r += ball.vr;
 
-					bounceOffWalls( ball, board );
-					bounceOffCeiling( ball, board );
-					this.bounceOffPaddle( ball, paddle );
+							bounceOffWalls( ball, board );
+							bounceOffCeiling( ball, board );
+							this.bounceOffPaddle( ball, paddle );
 
-					this.destroyBricks( ball, bricks, dx, dy, board, game );
+							this.destroyBricks( ball, this.get( 'bricks' ), dx, dy, board, game );
 
-					if ( ball.y - ball.radius > board.height ) {
-						this.loseLife();
-					}
+							ball.vx = Math.max( -game.maxVx, Math.min( game.maxVx, ball.vx ) );
+
+							if ( ball.y - ball.radius > board.height ) {
+								this.loseLife();
+							}
+						}
+					});
 
 					this.update( 'ball' );
+
+					powerups = this.get( 'powerups' );
+					i = powerups.length;
+					while ( i-- ) {
+						powerup = powerups[i];
+
+						powerup.y += powerup.vy;
+					}
+
+					this.update( 'powerups' );
 				}
 
 
@@ -163,6 +198,35 @@
 			};
 
 			rAF( frame );
+
+
+			this.observe({
+				'game.level': l => {
+					this.set( 'bricks', null ).then( () => {
+						var bricks = this.get( 'levels' )[l];
+						this.set( 'bricks', deepClone( bricks ) );
+					});
+
+					this.set( 'powerups', [] );
+					this.resetBall();
+					this.set( 'game.paused', true );
+				},
+				'game.paused': p => {
+					if ( p ) {
+						document.exitPointerLock();
+					}
+				}
+			});
+		},
+
+		pause: function () {
+			this.set( 'game.paused', true );
+			document.exitPointerLock();
+		},
+
+		play: function () {
+			this.set( 'game.paused', false );
+			this.launch();
 		},
 
 		setupKeyboard: function () {
@@ -237,7 +301,7 @@
 
 			if ( ball.resting ) {
 				ball.vx = ( ball.x - this.get( 'paddle.x' ) ) * 20;
-				ball.vy = -600;
+				ball.vy = -800;
 				ball.vr = ball.vx / 200;
 
 				ball.resting = false;
@@ -247,14 +311,17 @@
 		},
 
 		loseLife: function () {
-			var ball = this.get( 'ball' );
-
 			if ( !this.get( 'game.lives' ) ) {
 				this.gameOver();
 				return;
 			}
 
 			this.subtract( 'game.lives' );
+			this.resetBall();
+		},
+
+		resetBall: function () {
+			var ball = this.get( 'ball' );
 
 			ball.resting = true;
 			ball.vx = ball.vy = ball.vr = 0;
@@ -348,12 +415,42 @@
 			this.sounds.hit.play();
 
 			if ( won( bricks ) ) {
-				this.won();
+				this.wonLevel();
+			} else {
+				if ( Math.random() < 0.1 ) {
+					this.addPowerup( ( c2 + 0.5 ) * board.brickWidth, ( r2 + 0.5 ) * board.brickHeight );
+				}
 			}
 		},
 
-		won: function () {
-			window.alert( 'you won!' );
+		addPowerup: function ( x, y ) {
+			var powerups, i, powerup;
+
+			powerups = availablePowerups[ this.get( 'game.level' ) ];
+			i = ~~( Math.random() * powerups.length );
+
+			powerup = powerups[i];
+			this.push( 'powerups', {
+				type: powerup,
+				x: x,
+				y: y,
+				vy: 3 + Math.random() * 5
+			});
+		},
+
+		wonLevel: function () {
+			var numLevels = data.levels.length;
+			if ( this.get( 'game.level' ) < numLevels - 1 ) {
+				this.add( 'game.level' );
+			}
+
+			else {
+				this.goToUk();
+			}
+		},
+
+		goToUk: function () {
+
 		}
 	};
 
