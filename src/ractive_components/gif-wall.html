@@ -1,0 +1,87 @@
+<div class='gif-wall'>
+	{{#each images}}
+		<div class='image' style='background-image:url(${version}/files/gifs/{{this}}.gif)'></div>
+	{{/each}}
+
+	<div class='goodbye'>
+		<p>
+			<span style='color: red;'>G</span>
+			<span style='color: yellow;'>O</span>
+			<span style='color: blue;'>O</span>
+			<span style='color: purple;'>D</span>
+			<span style='color: green;'>B</span>
+			<span style='color: yellow;'>Y</span>
+			<span style='color: pink;'>E</span>
+		</p>
+
+		<p>
+			<span style='color: green;'>F</span>
+			<span style='color: blue;'>E</span>
+			<span style='color: yellow;'>I</span>
+			<span style='color: purple;'>L</span>
+			<span style='color: red;'>D</span>
+			<span style='color: orange;'>I</span>
+			<span style='color: green;'>N</span>
+			<span style='color: pink;'>G</span>
+		</p>
+	</div>
+</div>
+
+<style>
+	.gif-wall {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+	}
+
+	.image {
+		position: relative;
+		display: inline-block;
+		width: 10%;
+		height: 100px;
+		min-height: 10%;
+		background-color: #EEE;
+		background-size: cover;
+		background-position: center;
+	}
+
+	.goodbye {
+		position: absolute;
+		top: 50%;
+		left: 0%;
+		width: 100%;
+		transform: translate(0,-50%);
+		text-align: center;
+	}
+
+	.goodbye p, .goodbye span {
+		font-family: serif;
+		font-size: 3em;
+		margin: 0;
+	}
+
+	.goodbye span {
+		-webkit-animation: spin 2s infinite linear;
+	}
+</style>
+
+<script>
+	var soundtrack = require( 'soundtrack' );
+
+	component.exports = {
+		data: {
+			images: ( function () {
+				var images = new Array( 100 );
+
+				for ( var i = 0; i < images.length; i ++ ) {
+					images[ i ] = Math.round( Math.random() * 36 );
+				}
+				return images;
+			})()
+		},
+
+		onrender: function () {
+			soundtrack.shuffle( 3 );
+		}
+	};
+</script>

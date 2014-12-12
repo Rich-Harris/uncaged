@@ -1,15 +1,20 @@
 <link rel='ractive' href='./game-header.html'>
 <link rel='ractive' href='./game-board.html'>
+<link rel='ractive' href='./gif-wall.html'>
 
-<div class='uncaged level-{{game.level}}' style='background-image: url(${version}/files/bg/{{game.level+1}}.jpg)'>
-	<div class='header-container'>
-		<game-header/>
-	</div>
+{{#if game.won}}
+	<gif-wall/>
+{{else}}
+	<div class='uncaged level-{{game.level}}' style='background-image: url(${version}/files/bg/{{game.level+1}}.jpg)'>
+		<div class='header-container'>
+			<game-header/>
+		</div>
 
-	<div class='board-container'>
-		<game-board/>
+		<div class='board-container'>
+			<game-board/>
+		</div>
 	</div>
-</div>
+{{/if}}
 
 <style>
 	.uncaged {
@@ -45,6 +50,7 @@
 				lives: 3,
 				score: 0,
 				maxVx: 1000,
+				won: false,
 				highscore: (function () {
 					var highscore = 0;
 

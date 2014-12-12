@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang='en-GB'>
+<head>
+	<meta charset='utf-8'>
+	<title></title>
+
+	<style>
+
+		body {
+			margin: 0;
+			padding: 0;
+		}
+
+		#container {
+			position: relative;
+			width: 100%;
+			height: 100%;
+		}
+
+		.image {
+			position: relative;
+			display: inline-block;
+			width: 10%;
+			height: 100px;
+			background-color: #EEE;
+			background-size: cover;
+			background-position: center;
+		}
+
+	</style>
+
+</head>
+
+<body>
+
+	<div id='container'></div>
+
+	<script id='template' type='text/ractive'>
+
+		{{ #each images }}
+			<div class='image' style='background-image:url("images/{{ this }}.gif")'></div>
+		{{ /each }}
+
+	</script>
+
+	<script src='http://cdn.ractivejs.org/latest/ractive.min.js'></script>
+
+	<script>
+		var ractive = new Ractive({
+			el: 'container',
+			template: '#template',
+			data: { 
+				images: ( function () {
+					var images = new Array( 100 );
+
+					for ( var i = 0; i < images.length; i ++ ) {
+						images[ i ] = Math.round( Math.random() * 36 );
+					}
+					return images;
+				})()
+			}
+		});
+
+	</script>
+</body>
+</html>

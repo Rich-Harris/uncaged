@@ -123,6 +123,7 @@
 	var rAF = require( 'utils/compatibility/requestAnimationFrame' ),
 		now = require( 'utils/timing/now' ),
 		deepClone = require( 'utils/core/deepClone' ),
+		soundtrack = require( 'soundtrack' ),
 
 		bounceOffWalls = require( 'helpers/bounceOffWalls' ),
 		bounceOffCeiling = require( 'helpers/bounceOffCeiling' ),
@@ -156,6 +157,8 @@
 			// ball
 			balls: [],
 
+			bricksTillPowerup: 8,
+
 			range: function ( low, high ) {
 				var i, result = [];
 				for ( i = low; i <= high; i += 1 ) {
@@ -166,7 +169,6 @@
 		},
 
 		sounds: {
-			breakFree: audio( 'break-free.mp3' ),
 			boing: audio( 'boing_x.wav' ),
 			hit: audio( 'sfx/hit.wav' ),
 			flush: audio( 'sfx/flush.mp3' ),
@@ -279,6 +281,10 @@
 					this.set( 'powerups', [] );
 					this.resetBalls();
 					this.set( 'game.paused', true );
+
+					if ( l !== null ) {
+						soundtrack.shuffle( l );
+					}
 				},
 				'game.paused': p => {
 					if ( p ) {
@@ -337,8 +343,6 @@
 			this.svg = this.find( 'svg' );
 			this.setupMouse();
 			this.setupKeyboard();
-
-			//this.sounds.breakFree.play();
 		},
 
 		movePaddle: function ( screenX ) {
@@ -388,7 +392,11 @@
 
 			if ( this.get( 'gameOver' ) ) {
 				this.set( 'game.level', null );
-				this.set( 'game.level', 0 ).then( () => {
+				this.set({
+					'game.level': 0,
+					'game.score': 0,
+					'game.lives': 3
+				}).then( () => {
 					this.set({
 						gameOver: false,
 						'game.paused': false
@@ -605,14 +613,18 @@
 				added = 0,
 				rowNum,
 				columnNum,
-				row;
+				row,
+				i,
+				counter = 0;
 
-			while ( added < 10 ) {
+			while ( added < 10 && counter++ < 200 ) {
 				rowNum = ~~( Math.random() * 14 );
 				columnNum = ~~( Math.random() * 16 );
 
 				if ( !bricks[ rowNum ] ) {
-					bricks.length = rowNum + 1;
+					for ( i = bricks.length; i <= rowNum; i += 1 ) {
+						bricks[i] = [ null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null ];
+					}
 				}
 
 				row = bricks[ rowNum ];
@@ -640,7 +652,8 @@
 				candidates,
 				candidate,
 				collision,
-				i;
+				i,
+				bricksTillPowerup = this.get( 'bricksTillPowerup' );
 
 			hits = [{}, {}, {}, {}, {}];
 
@@ -711,8 +724,15 @@
 				if ( won( bricks ) ) {
 					this.wonLevel();
 				} else {
-					if ( ball.type === 'feilding' && Math.random() < 0.1 ) {
-						this.addPowerup( ( c2 + 0.5 ) * board.brickWidth, ( r2 + 0.5 ) * board.brickHeight );
+					if ( ball.type === 'feilding' ) {
+						--bricksTillPowerup;
+
+						if ( bricksTillPowerup <= 0 ) {
+							this.addPowerup( ( c2 + 0.5 ) * board.brickWidth, ( r2 + 0.5 ) * board.brickHeight );
+							bricksTillPowerup = ~~( Math.random() * 15 );
+						}
+
+						this.set( 'bricksTillPowerup', bricksTillPowerup );
 					}
 				}
 
@@ -751,7 +771,7 @@
 		},
 
 		goToUk: function () {
-
+			this.set( 'game.won', true );
 		},
 
 		transitions: {
