@@ -12,24 +12,6 @@
 
 	<rect width='{{board.width}}' height='{{board.height}}' fill='rgba(255,255,255,0.8)' stroke='rgba(0,0,0,0.4)'/>
 
-	<text text-anchor='end' x='100%'>
-		<tspan dx='-2em' dy='2em'>Score: {{game.score}}</tspan>
-	</text>
-
-	<text text-anchor='end' x='100%'>
-		<tspan dx='-2em' dy='4em'>Highscore: {{game.highscore}}</tspan>
-	</text>
-
-	<text text-anchor='start'>
-		<tspan dx='1em' dy='2em'>Lives: </tspan>
-	</text>
-
-	<g transform='translate(120,25) scale(1.5)'>
-		{{#each range(1,game.lives) :i}}
-			<image x='{{i*30}}' width='21.5' height='39.7' xlink:href='${version}/files/coke.png'>
-		{{/each}}
-	</g>
-
 	<g class='bricks'>
 		{{#each bricks :r}}
 			{{#each this :c}}
@@ -51,9 +33,40 @@
 		<ball x='{{x}}' y='{{y}}' r='{{r}}' radius='{{radius}}'/>
 	{{/each}}
 
-	{{#hits}}
-		<circle cx='{{x}}' cy='{{y}}' r='5' fill='red'/>
-	{{/hits}}
+
+
+
+	<text text-anchor='end' x='100%'>
+		<tspan class='text-bg' dx='-2em' dy='2em'>Score: {{game.score}}</tspan>
+	</text>
+
+	<text text-anchor='end' x='100%'>
+		<tspan dx='-2em' dy='2em'>Score: {{game.score}}</tspan>
+	</text>
+
+	<text text-anchor='end' x='100%'>
+		<tspan class='text-bg' dx='-2em' dy='4em'>Highscore: {{game.highscore}}</tspan>
+	</text>
+
+	<text text-anchor='end' x='100%'>
+		<tspan dx='-2em' dy='4em'>Highscore: {{game.highscore}}</tspan>
+	</text>
+
+	<text text-anchor='start'>
+		<tspan class='text-bg' dx='1em' dy='2em'>Lives: </tspan>
+	</text>
+
+	<text text-anchor='start'>
+		<tspan dx='1em' dy='2em'>Lives: </tspan>
+	</text>
+
+	<g transform='translate(120,25) scale(1.5)'>
+		{{#each range(1,game.lives) :i}}
+			<image x='{{i*30}}' width='21.5' height='39.7' xlink:href='${version}/files/coke.png'>
+		{{/each}}
+	</g>
+
+
 
 	{{#if game.paused && !gameOver}}
 		<g on-click='play()'>
@@ -71,7 +84,7 @@
 
 	{{#if announcement}}
 		<g transform='translate({{board.width/2}}, {{board.height/2}})'>
-			<text y='-50' class='announcement-bg large'>{{announcement}}</text>
+			<text y='-50' class='announcement text-bg large'>{{announcement}}</text>
 			<text y='-50' class='announcement large'>{{announcement}}</text>
 		</g>
 	{{/if}}
@@ -99,10 +112,10 @@
 		font-weight: bold;
 	}
 
-	.announcement-bg {
-		text-anchor: middle;
+	.text-bg {
 		stroke: white;
-		stroke-width: 3;
+		stroke-width: 8;
+		stroke-linejoin: rounded;
 	}
 </style>
 
@@ -563,6 +576,23 @@
 						break;
 
 					case 'nadja':
+						this.set( 'announcement', 'Multi-tasking' );
+						setTimeout( () => this.set( 'announcement', null ), 1500 );
+
+						var makeBall = i => ({
+							type: 'nadja',
+							resting: false,
+							radius: 55,
+							x: powerup.x,
+							y: powerup.y,
+							r: powerup.r,
+							vx: -600 + ( i * ( Math.random() * 600 ) ),
+							vy: -700,
+							vr: 10
+						});
+
+						this.push( 'balls', makeBall( 0 ), makeBall( 1 ), makeBall( 2 ) );
+						break;
 
 				}
 
