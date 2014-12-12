@@ -4,6 +4,12 @@
 <link rel='ractive' href='./powerup.html'>
 
 <svg viewBox='-10 -10 {{board.width+20}} {{board.height+20}}' on-click='launch()'>
+	<defs>
+		<clipPath id="brick-mask">
+			<rect x='2' y='2' width='{{board.brickWidth-4}}' height='{{board.brickHeight-4}}' rx='2' ry='2'/>
+		</clipPath>
+	</defs>
+
 	<rect width='{{board.width}}' height='{{board.height}}' fill='rgba(255,255,255,0.8)' stroke='rgba(0,0,0,0.4)'/>
 
 	<text text-anchor='end' x='100%'>

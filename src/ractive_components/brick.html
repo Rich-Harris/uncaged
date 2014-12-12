@@ -2,8 +2,14 @@
 	<g
 		intro='fade:{delay:{{row*80+column*20}}}'
 		transform='translate({{column*board.brickWidth}}, {{row*board.brickHeight}})'
+		clip-path='url(#brick-mask)'
 	>
 		<rect class='type-{{type}}' x='2' y='2' width='{{board.brickWidth-4}}' height='{{board.brickHeight-4}}' rx='2' ry='2'/>
+
+		<!-- bevel and gloss -->
+		<path class='bevel-light' d='M0,0 L{{board.brickWidth}},0 L{{board.brickWidth-6}},6 L6,6 L6,{{board.brickHeight-6}} L0,{{board.brickHeight}} L0,0 Z'/>
+
+		<path class='bevel-dark' d='M{{board.brickWidth}},{{board.brickHeight}} L0,{{board.brickHeight}} L6,{{board.brickHeight-6}} L{{board.brickWidth-6}},{{board.brickHeight-6}} L{{board.brickWidth-6}},6 L{{board.brickWidth}},0 L{{board.brickWidth}},{{board.brickHeight}} Z'/>
 	</g>
 {{/if}}
 
@@ -12,6 +18,9 @@
 		fill: #005689;
 		stroke: rgba(0,0,0,0.4);
 	}
+
+	.bevel-light { fill: rgba(255,255,255,0.5); }
+	.bevel-dark { fill: rgba(0,0,0,0.1); }
 
 	.type-a { fill: #382811; }
 	.type-b { fill: #ffce4b; }
