@@ -159,7 +159,9 @@
 			boing: audio( 'boing_x.wav' ),
 			hit: audio( 'sfx/hit.wav' ),
 			flush: audio( 'sfx/flush.mp3' ),
-			powerup: audio( 'sfx/powerup3.wav' )
+			powerup: audio( 'sfx/powerup3.wav' ),
+			burp: audio( 'sfx/burp.wav' ),
+			gabe: audio( 'sfx/gabe.wav' )
 		},
 
 		oninit: function () {
@@ -399,6 +401,8 @@
 		},
 
 		collectOrLosePowerup: function ( powerup, paddle ) {
+			var sound;
+
 			if ( powerup.y < paddle.y ) {
 				return;
 			}
@@ -412,8 +416,10 @@
 			}
 
 			if ( powerup.x > paddle.x - paddle.width / 2 && powerup.x < paddle.x + paddle.width / 2 ) {
+				sound = powerup.type === 'extraLife' ? 'burp' : powerup.type === 'gabe' ? 'gabe' : 'powerup';
+
 				// collect!
-				this.sounds.powerup.play();
+				this.sounds[ sound ].play();
 
 				switch ( powerup.type ) {
 					case 'greg':
