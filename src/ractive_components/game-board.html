@@ -42,7 +42,10 @@
 
 
 	<paddle/>
-	<ball x='{{ball.x}}' y='{{ball.y}}' r='{{ball.r}}' radius='{{ball.radius}}'/>
+
+	{{#each balls}}
+		<ball x='{{x}}' y='{{y}}' r='{{r}}' radius='{{radius}}'/>
+	{{/each}}
 
 	{{#if game.paused && !gameOver}}
 		<g on-click='play()'>
@@ -56,6 +59,13 @@
 		<rect width='{{board.width}}' height='{{board.height}}' fill='rgba(255,255,255,0.8)' stroke='rgba(0,0,0,0.4)'/>
 		<text x='{{board.width/2}}' y='{{board.height/2 - 50}}' class='game-over large'>Visa denied!</text>
 		<text x='{{board.width/2}}' y='{{board.height/2}}' class='game-over'>Click to try again</text>
+	{{/if}}
+
+	{{#if announcement}}
+		<g transform='translate({{board.width/2}}, {{board.height/2}})'>
+			<text y='-50' class='announcement-bg large'>{{announcement}}</text>
+			<text y='-50' class='announcement large'>{{announcement}}</text>
+		</g>
 	{{/if}}
 </svg>
 
@@ -72,13 +82,19 @@
 		font-size: 2em;
 	}
 
-	.game-over {
+	.game-over, .announcement {
 		text-anchor: middle;
 	}
 
 	.large {
 		font-size: 6em;
 		font-weight: bold;
+	}
+
+	.announcement-bg {
+		text-anchor: middle;
+		stroke: white;
+		stroke-width: 3;
 	}
 </style>
 
@@ -117,7 +133,8 @@
 			},
 
 			// ball
-			ball: {
+			balls: [{
+				type: 'feilding',
 				resting: true,
 				radius: 35,
 				x: 510,
@@ -126,7 +143,7 @@
 				vx: 0,
 				vy: 0,
 				vr: 0
-			},
+			}],
 
 			range: function ( low, high ) {
 				var i, result = [];
@@ -140,15 +157,17 @@
 		sounds: {
 			breakFree: audio( 'break-free.mp3' ),
 			boing: audio( 'boing_x.wav' ),
-			hit: audio( 'sfx/hit.wav' )
+			hit: audio( 'sfx/hit.wav' ),
+			flush: audio( 'sfx/flush.mp3' ),
+			powerup: audio( 'sfx/powerup3.wav' )
 		},
 
 		oninit: function () {
-			var frame, lastTime, game, board, ball, paddle;
+			var frame, lastTime, game, board, balls, paddle;
 
 			board = this.get( 'board' );
 			game = this.get( 'game' );
-			ball = this.get( 'ball' );
+			balls = this.get( 'balls' );
 			paddle = this.get( 'paddle' );
 
 			lastTime = now();
@@ -163,7 +182,7 @@
 				elapsed = ( time - lastTime ) / 1000;
 
 				if ( game.speed && !game.paused ) {
-					[ ball ].forEach( ball => {
+					balls.forEach( ball => {
 						if ( !ball.resting ) {
 							dx = ball.vx * elapsed * game.speed;
 							dy = ball.vy * elapsed * game.speed;
@@ -186,7 +205,7 @@
 						}
 					});
 
-					this.update( 'ball' );
+					this.update( 'balls' );
 
 					powerups = this.get( 'powerups' );
 					i = powerups.length;
@@ -194,6 +213,13 @@
 						powerup = powerups[i];
 
 						powerup.y += powerup.vy;
+						powerup.r += powerup.vr;
+
+						this.collectOrLosePowerup( powerup, paddle );
+
+						if ( powerup.discard ) {
+							powerups.splice( i, 1 );
+						}
 					}
 
 					this.update( 'powerups' );
@@ -289,8 +315,8 @@
 
 			newPaddleX = Math.max( min, Math.min( max, boardX ) );
 
-			if ( this.get( 'ball.resting' ) ) {
-				this.add( 'ball.x', newPaddleX - paddle.x );
+			if ( this.get( 'balls[0].resting' ) ) {
+				this.add( 'balls[0].x', newPaddleX - paddle.x );
 			}
 
 			this.set( 'paddle.x', newPaddleX );
@@ -303,7 +329,7 @@
 				this.svg.requestPointerLock();
 			}
 
-			ball = this.get( 'ball' );
+			ball = this.get( 'balls[0]' );
 
 			if ( ball.resting ) {
 				ball.vx = ( ball.x - this.get( 'paddle.x' ) ) * 20;
@@ -312,7 +338,7 @@
 
 				ball.resting = false;
 
-				this.update( 'ball ');
+				this.update( 'balls[0]' );
 			}
 		},
 
@@ -327,7 +353,7 @@
 		},
 
 		resetBall: function () {
-			var ball = this.get( 'ball' );
+			var ball = this.get( 'balls[0]' );
 
 			ball.resting = true;
 			ball.vx = ball.vy = ball.vr = 0;
@@ -335,7 +361,7 @@
 			ball.x = this.get( 'paddle.x' ) + ( Math.random() - 0.5 ) * 40;
 			ball.y = this.get( 'paddle.y' ) - ball.radius;
 
-			this.update( 'ball' );
+			this.update( 'balls[0]' );
 		},
 
 		gameOver: function () {
@@ -370,6 +396,63 @@
 
 			ball.vy *= -1;
 			this.sounds.boing.play();
+		},
+
+		collectOrLosePowerup: function ( powerup, paddle ) {
+			if ( powerup.y < paddle.y ) {
+				return;
+			}
+
+			if ( powerup.y > this.get( 'board.height' ) ) {
+				powerup.discard = true;
+			}
+
+			if ( powerup.y > paddle.y + paddle.height + 10 ) {
+				return;
+			}
+
+			if ( powerup.x > paddle.x - paddle.width / 2 && powerup.x < paddle.x + paddle.width / 2 ) {
+				// collect!
+				this.sounds.powerup.play();
+
+				switch ( powerup.type ) {
+					case 'greg':
+						this.set( 'announcement', 'Toilet break! 3...' );
+						this.set( 'game.speed', 0 );
+						setTimeout( () => this.set( 'announcement', 'Toilet break! 2...' ), 1000 );
+						setTimeout( () => this.set( 'announcement', 'Toilet break! 1...' ), 2000 );
+						setTimeout( () => {
+							this.set({
+								'game.speed': 1,
+								'announcement': null
+							});
+							this.sounds.flush.play();
+						}, 3000 );
+						break;
+
+					case 'extraLife':
+						this.set( 'announcement', 'Extra life!' );
+						setTimeout( () => this.set( 'announcement', null ), 1500 );
+						this.add( 'game.lives' );
+						break;
+
+					case 'gabe':
+						this.set( 'announcement', 'Get back to work!' );
+						setTimeout( () => this.set( 'announcement', null ), 1500 );
+						this.addBricks();
+						break;
+				}
+
+				powerup.discard = true;
+			}
+		},
+
+		addBricks: function () {
+			console.error( 'TODO add bricks' );
+		},
+
+		announce: function ( announcement ) {
+			console.log( announcement );
 		},
 
 		destroyBricks: function ( ball, bricks, dx, dy, board, game ) {
@@ -430,17 +513,21 @@
 		},
 
 		addPowerup: function ( x, y ) {
-			var powerups, i, powerup;
+			var powerups, i, powerup, v;
 
 			powerups = availablePowerups[ this.get( 'game.level' ) ];
 			i = ~~( Math.random() * powerups.length );
+
+			v = 3 + Math.random() * 5;
 
 			powerup = powerups[i];
 			this.push( 'powerups', {
 				type: powerup,
 				x: x,
 				y: y,
-				vy: 3 + Math.random() * 5
+				r: 0,
+				vy: v,
+				vr: powerup === 'extraLife' ? 0 : v * 1
 			});
 		},
 
@@ -457,6 +544,32 @@
 
 		goToUk: function () {
 
+		},
+
+		transitions: {
+			zoom: function ( t ) {
+				var targetScale, targetOpacity;
+
+				if ( t.isIntro ) {
+					t.setStyle({
+						transform: 'scale(0.3)',
+						opacity: 0
+					});
+
+					targetScale = targetOpacity = 1;
+				} else {
+					targetScale = 2;
+					targetOpacity = 0;
+				}
+
+				t.animateStyle({
+					transform: 'scale(' + targetScale + ')',
+					opacity: targetOpacity
+				}, {
+					duration: 2000,
+					easing: 'easeOut'
+				}).then( t.complete );
+			}
 		}
 	};
 
@@ -466,9 +579,8 @@
 		node = new Audio();
 		src = '${version}/files/' + filename;
 
-		node.addEventListener( 'ended', () => {
-			node.src = src;
-		});
+		// reset
+		node.addEventListener( 'ended', () => node.src = src );
 
 		node.src = src;
 		return node;
