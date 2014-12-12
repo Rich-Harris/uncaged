@@ -16,6 +16,10 @@
 		<tspan dx='-2em' dy='2em'>Score: {{game.score}}</tspan>
 	</text>
 
+	<text text-anchor='end' x='100%'>
+		<tspan dx='-2em' dy='4em'>Highscore: {{game.highscore}}</tspan>
+	</text>
+
 	<text text-anchor='start'>
 		<tspan dx='1em' dy='2em'>Lives: </tspan>
 	</text>
@@ -46,6 +50,10 @@
 	{{#each balls}}
 		<ball x='{{x}}' y='{{y}}' r='{{r}}' radius='{{radius}}'/>
 	{{/each}}
+
+	{{#hits}}
+		<circle cx='{{x}}' cy='{{y}}' r='5' fill='red'/>
+	{{/hits}}
 
 	{{#if game.paused && !gameOver}}
 		<g on-click='play()'>
@@ -109,10 +117,9 @@
 		data = require( 'data' );
 
 	var availablePowerups = [
-		//[ 'greg', 'gabe', 'extraLife' ],
-		[ 'kenanandkel' ],
-		[ 'kenton', 'kenan', 'gabe', 'greg', 'extraLife' ],
-		[ 'kenton', 'kenan', 'rich', 'nadja', 'extraLife' ]
+		[ 'greg', 'greg', 'gabe', 'gabe', 'extraLife' ],
+		[ 'kenanandkel', 'kenanandkel', 'gabe', 'gabe', 'greg', 'extraLife' ],
+		[ 'kenanandkel', 'rich', 'nadja', 'kenanandkel', 'rich', 'nadja', 'extraLife' ]
 	];
 
 	component.exports = {
@@ -134,17 +141,7 @@
 			},
 
 			// ball
-			balls: [{
-				type: 'feilding',
-				resting: true,
-				radius: 35,
-				x: 510,
-				y: 900,
-				r: 0,
-				vx: 0,
-				vy: 0,
-				vr: 0
-			}],
+			balls: [],
 
 			range: function ( low, high ) {
 				var i, result = [];
@@ -168,6 +165,8 @@
 		oninit: function () {
 			var frame, lastTime, game, board, balls, paddle;
 
+			this.resetBalls();
+
 			board = this.get( 'board' );
 			game = this.get( 'game' );
 			balls = this.get( 'balls' );
@@ -176,15 +175,30 @@
 			lastTime = now();
 
 			frame = () => {
-				var time, elapsed, dx, dy, i, powerups, powerup, ball;
+				var time, elapsed, dx, dy, i, powerups, powerup, balls, ball;
 
-				window.meter.tick();
+				//window.meter.tick();
 				rAF( frame );
 
 				time = now();
 				elapsed = ( time - lastTime ) / 1000;
 
 				if ( game.speed && !game.paused ) {
+					if ( this.timeToPaddleShrink ) {
+						this.timeToPaddleShrink -= elapsed * game.speed;
+
+						if ( this.timeToPaddleShrink < 0 ) {
+							this.timeToPaddleShrink = null;
+
+							this.animate( 'paddle.width', 200, {
+								duration: 400,
+								easing: 'easeOut'
+							});
+						}
+					}
+
+					balls = this.get( 'balls' );
+
 					i = balls.length;
 					while ( i-- ) {
 						ball = balls[i];
@@ -250,7 +264,7 @@
 					});
 
 					this.set( 'powerups', [] );
-					this.resetBall();
+					this.resetBalls();
 					this.set( 'game.paused', true );
 				},
 				'game.paused': p => {
@@ -325,6 +339,10 @@
 
 			newPaddleX = Math.max( min, Math.min( max, boardX ) );
 
+			if ( isNaN( newPaddleX ) ) {
+				return; // not sure why this happens...
+			}
+
 			if ( this.get( 'balls[0].resting' ) ) {
 				this.add( 'balls[0].x', newPaddleX - paddle.x );
 			}
@@ -333,22 +351,46 @@
 		},
 
 		launch: function () {
-			var ball, vx, vy, vr;
+			var launch;
+
+			launch = () => {
+				var ball, vx, vy, vr;
+
+				ball = this.get( 'balls[0]' );
+
+				if ( ball.resting ) {
+					ball.vx = ( ball.x - this.get( 'paddle.x' ) ) * 20;
+					ball.vy = -800;
+					ball.vr = ball.vx / 200;
+
+					ball.resting = false;
+
+					this.update( 'balls[0]' );
+				}
+			};
 
 			if ( !this.get( 'mouselock' ) ) {
 				this.svg.requestPointerLock();
 			}
 
-			ball = this.get( 'balls[0]' );
+			if ( this.get( 'gameOver' ) ) {
+				this.set( 'game.level', null );
+				this.set( 'game.level', 0 ).then( () => {
+					this.set({
+						gameOver: false,
+						'game.paused': false
+					});
 
-			if ( ball.resting ) {
-				ball.vx = ( ball.x - this.get( 'paddle.x' ) ) * 20;
-				ball.vy = -800;
-				ball.vr = ball.vx / 200;
+					launch();
+				});
+			}
 
-				ball.resting = false;
+			else {
+				this.set({
+					'game.paused': false
+				});
 
-				this.update( 'balls[0]' );
+				launch();
 			}
 		},
 
@@ -359,28 +401,50 @@
 			}
 
 			this.subtract( 'game.lives' );
-			this.resetBall();
+			this.resetBalls();
 		},
 
-		resetBall: function () {
-			var ball = this.get( 'balls[0]' );
+		resetBalls: function () {
+			// var ball = this.get( 'balls[0]' );
 
-			ball.resting = true;
-			ball.vx = ball.vy = ball.vr = 0;
+			// this.splice( 'balls', 0, this.get( 'balls.length' ) );
 
-			ball.x = this.get( 'paddle.x' ) + ( Math.random() - 0.5 ) * 40;
-			ball.y = this.get( 'paddle.y' ) - ball.radius;
-
-			this.update( 'balls[0]' );
+			this.set( 'balls', [{
+				type: 'feilding',
+				resting: true,
+				radius: 35,
+				x: this.get( 'paddle.x' ) + ( Math.random() - 0.5 ) * 40,
+				y: this.get( 'paddle.y' ) - 35,
+				r: 0,
+				vx: 0,
+				vy: 0,
+				vr: 0
+			}]);
 		},
 
 		gameOver: function () {
+			this.resetBalls();
+			this.updateHighscore();
+
 			this.set({
 				gameOver: true,
 				'game.paused': true
 			});
 
 			document.exitPointerLock();
+		},
+
+		updateHighscore: function () {
+			var score = this.get( 'game.score' ),
+				highscore = this.get( 'game.highscore' );
+
+			if ( score > highscore ) {
+				this.set( 'game.highscore', score );
+
+				if ( window.localStorage ) {
+					window.localStorage.setItem( 'feilding_uncaged_highscore', score );
+				}
+			}
 		},
 
 		bounceOffPaddle: function ( ball, paddle ) {
@@ -409,7 +473,7 @@
 		},
 
 		collectOrLosePowerup: function ( powerup, paddle ) {
-			var sound;
+			var sound, ball;
 
 			if ( powerup.y < paddle.y ) {
 				return;
@@ -459,7 +523,8 @@
 					case 'kenanandkel':
 						this.set( 'announcement', '2 heads are better than 1' );
 						setTimeout( () => this.set( 'announcement', null ), 1500 );
-						this.push( 'balls', {
+
+						ball = {
 							type: 'kenanandkel',
 							resting: false,
 							radius: 40,
@@ -470,8 +535,34 @@
 							vy: -1200,
 							vr: 10,
 							indestructable: true
-						});
+						};
+
+						setTimeout( () => ball.indestructable = false, 2500 );
+
+						this.push( 'balls', ball );
 						break;
+
+					case 'rich':
+						if ( !this.timeToPaddleShrink ) {
+							this.timeToPaddleShrink = 10;
+
+							this.animate( 'paddle.width', 300, {
+								duration: 400,
+								easing: 'easeOut'
+							}, {
+								step: function () {
+									paddle.x = Math.max( paddle.width / 2, Math.min( paddle.x, this.get( 'board.width' ) - paddle.width / 2 ) );
+								}
+							});
+						} else {
+							this.timeToPaddleShrink += 5;
+						}
+
+						this.set( 'announcement', 'Reach further' );
+						setTimeout( () => this.set( 'announcement', null ), 1500 );
+						break;
+
+					case 'nadja':
 
 				}
 
@@ -480,11 +571,29 @@
 		},
 
 		addBricks: function () {
-			console.error( 'TODO add bricks' );
-		},
+			var bricks = this.get( 'bricks' ),
+				added = 0,
+				rowNum,
+				columnNum,
+				row;
 
-		announce: function ( announcement ) {
-			console.log( announcement );
+			while ( added < 10 ) {
+				rowNum = ~~( Math.random() * 14 );
+				columnNum = ~~( Math.random() * 16 );
+
+				if ( !bricks[ rowNum ] ) {
+					bricks.length = rowNum + 1;
+				}
+
+				row = bricks[ rowNum ];
+
+				if ( !row[ columnNum ] ) {
+					row[ columnNum ] = 'o';
+					added += 1;
+				}
+			}
+
+			this.update( 'bricks' );
 		},
 
 		destroyBricks: function ( ball, bricks, dx, dy, board, game ) {
@@ -496,51 +605,88 @@
 				c1, c2, r1, r2,
 				x,
 				y,
+				hits,
+				hit,
 				candidates,
 				candidate,
 				collision,
 				i;
 
+			hits = [{}, {}, {}, {}, {}];
+
+			if ( ball.vx > 0 ) {
+				hits[0].x = hits[1].x = hits[2].x = ( ball.x + ball.radius );
+				hits[3].x = ball.x;
+				hits[4].x = ball.x - ball.radius;
+			} else {
+				hits[0].x = hits[1].x = hits[2].x = ( ball.x - ball.radius );
+				hits[3].x = ball.x;
+				hits[4].x = ball.x + ball.radius;
+			}
+
+			if ( ball.vy > 0 ) {
+				hits[0].y = ball.y - ball.radius;
+				hits[1].y = ball.y;
+				hits[2].y = hits[3].y = hits[4].y = ( ball.y + ball.radius );
+			} else {
+				hits[0].y = ball.y + ball.radius;
+				hits[1].y = ball.y;
+				hits[2].y = hits[3].y = hits[4].y = ( ball.y - ball.radius );
+			}
+
 			x = ball.vx > 0 ? ball.x + ball.radius : ball.x - ball.radius;
 			y = ball.vy > 0 ? ball.y + ball.radius : ball.y - ball.radius;
 
-			c1 = ~~( x / board.brickWidth );
-			c2 = ~~( ( x + dx ) / board.brickWidth );
+			i = hits.length;
+			while ( i-- ) {
+				hit = hits[i];
 
-			r1 = ~~( y / board.brickHeight );
-			r2 = ~~( ( y + dy ) / board.brickHeight );
+				c1 = ~~( hit.x / board.brickWidth );
+				c2 = ~~( ( hit.x + dx ) / board.brickWidth );
 
-			if ( c2 !== c1 ) {
-				c2 = c2 > c1 ? c1 + 1 : c1 - 1;
-			}
+				r1 = ~~( hit.y / board.brickHeight );
+				r2 = ~~( ( hit.y + dy ) / board.brickHeight );
 
-			if ( r2 !== r1 ) {
-				r2 = r2 > r1 ? r1 + 1 : r1 - 1;
-			}
-
-			row = bricks[ r2 ];
-			if ( !row ) return;
-
-			brick = row[ c2 ];
-			if ( !brick ) return;
-
-			if ( c2 !== c1 ) {
-				ball.vx *= -1;
-			}
-
-			if ( r2 !== r1 ) {
-				ball.vy *= -1;
-			}
-
-			this.set( 'bricks[' + r2 + '][' + c2 + ']', null );
-			this.sounds.hit.play();
-
-			if ( won( bricks ) ) {
-				this.wonLevel();
-			} else {
-				if ( Math.random() < 0.4 ) {
-					this.addPowerup( ( c2 + 0.5 ) * board.brickWidth, ( r2 + 0.5 ) * board.brickHeight );
+				if ( c2 !== c1 ) {
+					c2 = c2 > c1 ? c1 + 1 : c1 - 1;
 				}
+
+				if ( r2 !== r1 ) {
+					r2 = r2 > r1 ? r1 + 1 : r1 - 1;
+				}
+
+				row = bricks[ r2 ];
+				if ( !row ) {
+					continue;
+				}
+
+				brick = row[ c2 ];
+				if ( !brick ) {
+					continue;
+				}
+
+				if ( !ball.indestructable && c2 !== c1 ) {
+					ball.vx *= -1;
+				}
+
+				if ( !ball.indestructable && r2 !== r1 ) {
+					ball.vy *= -1;
+				}
+
+				this.set( 'bricks[' + r2 + '][' + c2 + ']', null );
+				this.sounds.hit.play();
+
+				this.add( 'game.score', 10 );
+
+				if ( won( bricks ) ) {
+					this.wonLevel();
+				} else {
+					if ( ball.type === 'feilding' && Math.random() < 0.1 ) {
+						this.addPowerup( ( c2 + 0.5 ) * board.brickWidth, ( r2 + 0.5 ) * board.brickHeight );
+					}
+				}
+
+				break;
 			}
 		},
 

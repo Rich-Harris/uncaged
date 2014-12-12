@@ -1,7 +1,7 @@
 <link rel='ractive' href='./game-header.html'>
 <link rel='ractive' href='./game-board.html'>
 
-<div class='uncaged' style='background-image: url(${version}/files/bg/{{game.level+1}}.jpg)'>
+<div class='uncaged level-{{game.level}}' style='background-image: url(${version}/files/bg/{{game.level+1}}.jpg)'>
 	<div class='header-container'>
 		<game-header/>
 	</div>
@@ -44,7 +44,16 @@
 				speed: 1,
 				lives: 3,
 				score: 0,
-				maxVx: 1000
+				maxVx: 1000,
+				highscore: (function () {
+					var highscore = 0;
+
+					if ( window.localStorage ) {
+						highscore = +( window.localStorage.getItem( 'feilding_uncaged_highscore' ) || 0 );
+					}
+
+					return highscore;
+				}())
 			}
 		}
 	};
