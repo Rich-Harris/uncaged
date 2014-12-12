@@ -109,7 +109,8 @@
 		data = require( 'data' );
 
 	var availablePowerups = [
-		[ 'greg', 'gabe', 'extraLife' ],
+		//[ 'greg', 'gabe', 'extraLife' ],
+		[ 'kenanandkel' ],
 		[ 'kenton', 'kenan', 'gabe', 'greg', 'extraLife' ],
 		[ 'kenton', 'kenan', 'rich', 'nadja', 'extraLife' ]
 	];
@@ -175,7 +176,7 @@
 			lastTime = now();
 
 			frame = () => {
-				var time, elapsed, dx, dy, i, powerups, powerup;
+				var time, elapsed, dx, dy, i, powerups, powerup, ball;
 
 				window.meter.tick();
 				rAF( frame );
@@ -184,7 +185,10 @@
 				elapsed = ( time - lastTime ) / 1000;
 
 				if ( game.speed && !game.paused ) {
-					balls.forEach( ball => {
+					i = balls.length;
+					while ( i-- ) {
+						ball = balls[i];
+
 						if ( !ball.resting ) {
 							dx = ball.vx * elapsed * game.speed;
 							dy = ball.vy * elapsed * game.speed;
@@ -202,10 +206,14 @@
 							ball.vx = Math.max( -game.maxVx, Math.min( game.maxVx, ball.vx ) );
 
 							if ( ball.y - ball.radius > board.height ) {
-								this.loseLife();
+								balls.splice( i, 1 );
+
+								if ( !balls.length ) {
+									this.loseLife();
+								}
 							}
 						}
-					});
+					}
 
 					this.update( 'balls' );
 
@@ -447,6 +455,24 @@
 						setTimeout( () => this.set( 'announcement', null ), 1500 );
 						this.addBricks();
 						break;
+
+					case 'kenanandkel':
+						this.set( 'announcement', '2 heads are better than 1' );
+						setTimeout( () => this.set( 'announcement', null ), 1500 );
+						this.push( 'balls', {
+							type: 'kenanandkel',
+							resting: false,
+							radius: 40,
+							x: powerup.x,
+							y: powerup.y,
+							r: powerup.r,
+							vx: -400 + ( Math.random() * 800 ),
+							vy: -1200,
+							vr: 10,
+							indestructable: true
+						});
+						break;
+
 				}
 
 				powerup.discard = true;
@@ -512,7 +538,7 @@
 			if ( won( bricks ) ) {
 				this.wonLevel();
 			} else {
-				if ( Math.random() < 0.1 ) {
+				if ( Math.random() < 0.4 ) {
 					this.addPowerup( ( c2 + 0.5 ) * board.brickWidth, ( r2 + 0.5 ) * board.brickHeight );
 				}
 			}
